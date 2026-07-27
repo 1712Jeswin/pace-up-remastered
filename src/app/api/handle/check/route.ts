@@ -1,44 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkHandleAvailability } from "@/lib/handle";
 
-// TODO: Phase 4 — replace this placeholder with real DB lookup once the
-// handle column and uniqueness constraint are added to the user schema.
-const MOCK_TAKEN_HANDLES = new Set([
-  "admin",
-  "paceup",
-  "support",
-  "jeswin",
-  "test",
-  "user",
-]);
+export const dynamic = "force-dynamic";
 
-const HANDLE_REGEX = /^[a-z0-9_]{3,24}$/;
-
-export async function GET(req: NextRequest) {
+/**
+ * GET /api/handle/check?handle=candidate
+ *
+ * Returns whether a handle is available for claiming.
+ * Validates format, checks reserved words, then performs a case-insensitive DB lookup.
+ *
+ * Response shape: { success: boolean, available: boolean, reason?: string }
+ */
+export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
-  const handle = searchParams.get("handle")?.toLowerCase().trim();
+  const rawHandle = searchParams.get("handle");
 
-  if (!handle) {
+  if (!rawHandle) {
     return NextResponse.json(
       { success: false, error: "Missing handle parameter" },
       { status: 400 }
     );
   }
 
-  if (!HANDLE_REGEX.test(handle)) {
+  const handle = rawHandle.toLowerCase().trim();
+
+  try {
+    const result = await checkHandleAvailability(handle);
+    return NextResponse.json({ success: true, ...result }, { status: 200 });
+  } catch (error) {
+    // Never expose raw error details to the client
+    console.error("[handle/check] DB lookup failed:", error);
     return NextResponse.json(
-      {
-        success: true,
-        available: false,
-        reason: "Handle must be 3-24 characters: lowercase letters, numbers, and underscores only.",
-      },
-      { status: 200 }
+      { success: false, error: "Could not check handle availability. Please try again." },
+      { status: 500 }
     );
   }
-
-  const isAvailable = !MOCK_TAKEN_HANDLES.has(handle);
-
-  return NextResponse.json(
-    { success: true, available: isAvailable },
-    { status: 200 }
-  );
 }
