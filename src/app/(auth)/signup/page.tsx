@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Loader2, Eye, EyeOff } from "lucide-react";
 
@@ -172,8 +172,10 @@ function HandleStatusIcon({ status }: { status: HandleStatus }) {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
 
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -247,7 +249,7 @@ export default function SignUpPage() {
     setOauthLoading(provider);
     setServerError("");
     try {
-      await signIn.social({ provider, callbackURL: "/projects" });
+      await signIn.social({ provider, callbackURL: returnTo || "/projects" });
     } catch {
       setServerError("OAuth sign-in failed. Please try again.");
       setOauthLoading(null);
@@ -269,7 +271,7 @@ export default function SignUpPage() {
         password: form.password,
         // TODO: Phase 4 — wire handle into Better Auth signup flow once the handle
         // column is added to the user schema and the handle system backend is built.
-        callbackURL: "/projects",
+        callbackURL: returnTo || "/projects",
       });
 
       if (result.error) {
@@ -502,7 +504,7 @@ export default function SignUpPage() {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href={returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : "/login"}
             className="font-medium text-foreground underline underline-offset-2 hover:text-toxic transition-colors"
           >
             Log in
@@ -510,5 +512,17 @@ export default function SignUpPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }
