@@ -8,6 +8,7 @@ import { WizardProgressBar } from "./WizardProgressBar";
 import { WizardNav } from "./WizardNav";
 import { WizardStepPlaceholder } from "./WizardStepPlaceholder";
 import { ProjectDetailsStep } from "./steps/ProjectDetailsStep";
+import { TechStackStep } from "./steps/TechStackStep";
 import type { WizardStep, SlideDirection, WizardFormData } from "@/types/wizard";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -95,6 +96,7 @@ export function WizardShell() {
     scope: "",
     type: "",
     deadline: "",
+    techStack: [],
   });
 
   const [canContinue, setCanContinue] = useState(false);
@@ -143,6 +145,15 @@ export function WizardShell() {
       case 0:
         return (
           <ProjectDetailsStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+          />
+        );
+      case 1:
+        return (
+          <TechStackStep
             step={currentStep}
             formData={formData}
             updateForm={updateForm}
