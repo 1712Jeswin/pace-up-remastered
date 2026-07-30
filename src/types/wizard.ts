@@ -1,4 +1,4 @@
-﻿// Wizard step definition — drives both the progress indicator and the shell router.
+// Wizard step definition — drives both the progress indicator and the shell router.
 
 export interface WizardStep {
   /** 0-based index */
@@ -25,6 +25,7 @@ export interface WizardFormData {
   scope: string;
   type: ProjectType;
   deadline: string; // YYYY-MM-DD format
+  techStack: string[];
 }
 
 export interface WizardStepProps {
