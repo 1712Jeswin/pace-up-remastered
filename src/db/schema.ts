@@ -1,4 +1,14 @@
-import { pgTable, text, timestamp, varchar, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  varchar,
+  boolean,
+  integer,
+  index,
+  uniqueIndex,
+  pgEnum,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Enable pgvector extension when migrating if needed:
@@ -55,3 +65,105 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("createdAt"),
   updatedAt: timestamp("updatedAt"),
 });
+
+// ─── Project enums ────────────────────────────────────────────────────────────
+
+export const projectTypeEnum = pgEnum("project_type", [
+  "Hackathon",
+  "Final-Year Project",
+  "Coursework",
+  "Club Project",
+  "Research",
+]);
+
+export const projectRoleEnum = pgEnum("project_role", ["owner", "member"]);
+
+// ─── Project ─────────────────────────────────────────────────────────────────
+
+export const project = pgTable(
+  "project",
+  {
+    id: text("id").primaryKey(),
+    title: varchar("title", { length: 120 }).notNull(),
+    type: projectTypeEnum("type").notNull(),
+    // 0-100 integer representing task completion percentage
+    progress: integer("progress").notNull().default(0),
+    deadline: timestamp("deadline"),
+    // Soft-archive: not deleted, hidden from the active grid
+    archivedAt: timestamp("archivedAt"),
+    lastActiveAt: timestamp("lastActiveAt").notNull(),
+    ownerId: text("ownerId")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("createdAt").notNull(),
+    updatedAt: timestamp("updatedAt").notNull(),
+  },
+  (table) => [
+    // "All projects where ownerId = X" - used by the owned-by-me filter
+    index("project_owner_idx").on(table.ownerId),
+    // Default sort: recently active
+    index("project_last_active_idx").on(table.lastActiveAt),
+    // Archived filter
+    index("project_archived_idx").on(table.archivedAt),
+  ]
+);
+
+// ─── Project Member ───────────────────────────────────────────────────────────
+
+export const projectMember = pgTable(
+  "project_member",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: projectRoleEnum("role").notNull().default("member"),
+    joinedAt: timestamp("joinedAt").notNull(),
+  },
+  (table) => [
+    // "All members of project X" - used for avatar clusters on the card
+    index("project_member_project_idx").on(table.projectId),
+    // "All projects user Y is in" - used by the hub member filter
+    index("project_member_user_idx").on(table.userId),
+    // A user can only appear once per project
+    uniqueIndex("project_member_unique_idx").on(table.projectId, table.userId),
+  ]
+);
+
+// ─── Project Invite ───────────────────────────────────────────────────────────
+
+export const inviteStatusEnum = pgEnum("invite_status", [
+  "pending",
+  "accepted",
+  "declined",
+  "expired",
+]);
+
+export const projectInvite = pgTable(
+  "project_invite",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    // Invited user - null if link-based invite not yet claimed
+    inviteeId: text("inviteeId").references(() => user.id, { onDelete: "set null" }),
+    invitedByUserId: text("invitedByUserId")
+      .notNull()
+      .references(() => user.id),
+    // Short code for manual entry; token for link-based invites
+    code: varchar("code", { length: 16 }).unique(),
+    token: text("token").unique(),
+    status: inviteStatusEnum("status").notNull().default("pending"),
+    expiresAt: timestamp("expiresAt").notNull(),
+    createdAt: timestamp("createdAt").notNull(),
+  },
+  (table) => [
+    // Pending invites for a given user - shown in hub banner
+    index("project_invite_invitee_idx").on(table.inviteeId),
+    index("project_invite_project_idx").on(table.projectId),
+  ]
+);
