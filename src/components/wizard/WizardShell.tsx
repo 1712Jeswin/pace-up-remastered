@@ -9,6 +9,8 @@ import { WizardNav } from "./WizardNav";
 import { WizardStepPlaceholder } from "./WizardStepPlaceholder";
 import { ProjectDetailsStep } from "./steps/ProjectDetailsStep";
 import { TechStackStep } from "./steps/TechStackStep";
+import { SupportingDocsStep } from "./steps/SupportingDocsStep";
+import { InviteTeamStep } from "./steps/InviteTeamStep";
 import type { WizardStep, SlideDirection, WizardFormData } from "@/types/wizard";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -97,6 +99,8 @@ export function WizardShell() {
     type: "",
     deadline: "",
     techStack: [],
+    uploadedDocuments: [],
+    stagedInvites: [],
   });
 
   const [canContinue, setCanContinue] = useState(false);
@@ -154,6 +158,24 @@ export function WizardShell() {
       case 1:
         return (
           <TechStackStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+          />
+        );
+      case 2:
+        return (
+          <SupportingDocsStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+          />
+        );
+      case 3:
+        return (
+          <InviteTeamStep
             step={currentStep}
             formData={formData}
             updateForm={updateForm}
