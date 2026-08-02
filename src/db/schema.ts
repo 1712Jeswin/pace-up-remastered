@@ -8,6 +8,7 @@ import {
   index,
   uniqueIndex,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -29,6 +30,19 @@ export const user = pgTable("user", {
   // Handle lookups use LOWER() to match against this index.
   uniqueIndex("user_handle_lower_idx").on(sql`LOWER(${table.handle})`),
 ]);
+
+// ─── Global User Profile ──────────────────────────────────────────────────────
+
+export const userProfile = pgTable("user_profile", {
+  id: text("id").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  // Global skillset default for the user
+  skills: jsonb("skills").$type<{ name: string; confidence: "Comfortable" | "Learning" }[]>(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
@@ -78,6 +92,15 @@ export const projectTypeEnum = pgEnum("project_type", [
 
 export const projectRoleEnum = pgEnum("project_role", ["owner", "member"]);
 
+export const projectRolePreferenceEnum = pgEnum("project_role_preference", [
+  "Frontend",
+  "Backend",
+  "Design",
+  "Research",
+  "PM-ish",
+  "Flexible",
+]);
+
 // ─── Project ─────────────────────────────────────────────────────────────────
 
 export const project = pgTable(
@@ -121,6 +144,15 @@ export const projectMember = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: projectRoleEnum("role").notNull().default("member"),
+    
+    // Project-specific profile setup
+    skills: jsonb("skills").$type<{ name: string; confidence: "Comfortable" | "Learning" }[]>(),
+    rolePreference: projectRolePreferenceEnum("rolePreference"),
+    interests: text("interests"),
+    weeklyHours: integer("weeklyHours"),
+    otherProjects: boolean("otherProjects").default(false),
+    timezone: text("timezone"),
+    
     joinedAt: timestamp("joinedAt").notNull(),
   },
   (table) => [
@@ -165,5 +197,55 @@ export const projectInvite = pgTable(
     // Pending invites for a given user - shown in hub banner
     index("project_invite_invitee_idx").on(table.inviteeId),
     index("project_invite_project_idx").on(table.projectId),
+  ]
+);
+
+// ─── AI Provider Key ──────────────────────────────────────────────────────────
+
+export const aiProviderEnum = pgEnum("ai_provider", [
+  "gemini",
+  "openai",
+  "anthropic",
+  "openrouter",
+  "groq",
+]);
+
+export const keyPolicyEnum = pgEnum("key_policy", [
+  // The project owner's key is used for all AI calls in this project
+  "owner_key",
+  // Each member must connect their own key
+  "per_member_key",
+]);
+
+/**
+ * Stores an encrypted AI provider API key for a user+project combination.
+ * The key is AES-256-GCM envelope-encrypted server-side and NEVER returned
+ * to the client in plaintext. Once saved, the UI shows only "Key saved ✓".
+ *
+ * Policy: either the owner's key is shared (owner_key) or each member
+ * must supply their own (per_member_key). Stored per (projectId, userId).
+ */
+export const projectApiKey = pgTable(
+  "project_api_key",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    provider: aiProviderEnum("provider").notNull(),
+    // Envelope-encrypted ciphertext: iv:authTag:encDataKey:iv2:authTag2:ciphertext (hex, colon-delimited)
+    encryptedKey: text("encryptedKey").notNull(),
+    policy: keyPolicyEnum("policy").notNull().default("owner_key"),
+    createdAt: timestamp("createdAt").notNull(),
+    updatedAt: timestamp("updatedAt").notNull(),
+  },
+  (table) => [
+    // One key per user per project per provider
+    uniqueIndex("project_api_key_unique_idx").on(table.projectId, table.userId, table.provider),
+    // "All keys for project X" — used when determining which members have connected
+    index("project_api_key_project_idx").on(table.projectId),
   ]
 );
