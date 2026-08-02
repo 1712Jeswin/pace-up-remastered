@@ -11,6 +11,8 @@ import { ProjectDetailsStep } from "./steps/ProjectDetailsStep";
 import { TechStackStep } from "./steps/TechStackStep";
 import { SupportingDocsStep } from "./steps/SupportingDocsStep";
 import { InviteTeamStep } from "./steps/InviteTeamStep";
+import { AiProviderStep } from "./steps/AiProviderStep";
+import { ReviewStep } from "./steps/ReviewStep";
 import type { WizardStep, SlideDirection, WizardFormData } from "@/types/wizard";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ export function WizardShell() {
     techStack: [],
     uploadedDocuments: [],
     stagedInvites: [],
+    providerKey: null,
   });
 
   const [canContinue, setCanContinue] = useState(false);
@@ -130,8 +133,18 @@ export function WizardShell() {
   }, [goForward]);
 
   const handleFinish = useCallback(() => {
-    console.info("[WizardShell] Create Project triggered with data:", formData);
-  }, [formData]);
+    // Delegate to the hidden trigger button inside ReviewStep,
+    // which calls createProjectAction and handles the redirect.
+    const btn = document.getElementById("create-project-trigger");
+    if (btn instanceof HTMLButtonElement) btn.click();
+  }, []);
+
+  // Navigate to any step directly — used by ReviewStep Edit links
+  const goToStep = useCallback((targetIndex: number) => {
+    const dir: SlideDirection = targetIndex < currentIndex ? "back" : "forward";
+    setDirection(dir);
+    setCurrentIndex(targetIndex);
+  }, [currentIndex]);
 
   const handleContinueOrFinish = useCallback(() => {
     if (isLastStep) {
@@ -180,6 +193,25 @@ export function WizardShell() {
             formData={formData}
             updateForm={updateForm}
             setCanContinue={setCanContinue}
+          />
+        );
+      case 4:
+        return (
+          <AiProviderStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+          />
+        );
+      case 5:
+        return (
+          <ReviewStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+            onNavigateToStep={goToStep}
           />
         );
       default:

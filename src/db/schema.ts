@@ -167,3 +167,53 @@ export const projectInvite = pgTable(
     index("project_invite_project_idx").on(table.projectId),
   ]
 );
+
+// ─── AI Provider Key ──────────────────────────────────────────────────────────
+
+export const aiProviderEnum = pgEnum("ai_provider", [
+  "gemini",
+  "openai",
+  "anthropic",
+  "openrouter",
+  "groq",
+]);
+
+export const keyPolicyEnum = pgEnum("key_policy", [
+  // The project owner's key is used for all AI calls in this project
+  "owner_key",
+  // Each member must connect their own key
+  "per_member_key",
+]);
+
+/**
+ * Stores an encrypted AI provider API key for a user+project combination.
+ * The key is AES-256-GCM envelope-encrypted server-side and NEVER returned
+ * to the client in plaintext. Once saved, the UI shows only "Key saved ✓".
+ *
+ * Policy: either the owner's key is shared (owner_key) or each member
+ * must supply their own (per_member_key). Stored per (projectId, userId).
+ */
+export const projectApiKey = pgTable(
+  "project_api_key",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    provider: aiProviderEnum("provider").notNull(),
+    // Envelope-encrypted ciphertext: iv:authTag:encDataKey:iv2:authTag2:ciphertext (hex, colon-delimited)
+    encryptedKey: text("encryptedKey").notNull(),
+    policy: keyPolicyEnum("policy").notNull().default("owner_key"),
+    createdAt: timestamp("createdAt").notNull(),
+    updatedAt: timestamp("updatedAt").notNull(),
+  },
+  (table) => [
+    // One key per user per project per provider
+    uniqueIndex("project_api_key_unique_idx").on(table.projectId, table.userId, table.provider),
+    // "All keys for project X" — used when determining which members have connected
+    index("project_api_key_project_idx").on(table.projectId),
+  ]
+);

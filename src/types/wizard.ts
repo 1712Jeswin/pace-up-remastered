@@ -18,6 +18,10 @@ export type SlideDirection = "forward" | "back";
 
 export type ProjectType = "Hackathon" | "Final-Year Project" | "Coursework" | "Club Project" | "Research" | "";
 
+export type AiProvider = "gemini" | "openai" | "anthropic" | "openrouter" | "groq" | "";
+
+export type KeyPolicy = "owner_key" | "per_member_key";
+
 /** A document that has been uploaded to Supabase Storage during the wizard. */
 export interface UploadedDocument {
   /** Unique storage path — used to remove the file if needed */
@@ -42,6 +46,16 @@ export interface StagedInvite {
   image: string | null;
 }
 
+/** The result of encrypting a provider API key — stored in wizard state until project creation. */
+export interface ProviderKeyState {
+  provider: AiProvider;
+  /** Envelope-encrypted ciphertext — never the plaintext */
+  encryptedKey: string;
+  policy: KeyPolicy;
+  /** Indicates the key has been validated and encrypted; UI shows "Key saved" */
+  isSaved: boolean;
+}
+
 export interface WizardFormData {
   title: string;
   problemStatement: string;
@@ -52,6 +66,7 @@ export interface WizardFormData {
   techStack: string[];
   uploadedDocuments: UploadedDocument[];
   stagedInvites: StagedInvite[];
+  providerKey: ProviderKeyState | null;
 }
 
 export interface WizardStepProps {
