@@ -8,6 +8,7 @@ import {
   index,
   uniqueIndex,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -29,6 +30,19 @@ export const user = pgTable("user", {
   // Handle lookups use LOWER() to match against this index.
   uniqueIndex("user_handle_lower_idx").on(sql`LOWER(${table.handle})`),
 ]);
+
+// ─── Global User Profile ──────────────────────────────────────────────────────
+
+export const userProfile = pgTable("user_profile", {
+  id: text("id").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  // Global skillset default for the user
+  skills: jsonb("skills").$type<{ name: string; confidence: "Comfortable" | "Learning" }[]>(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
@@ -78,6 +92,15 @@ export const projectTypeEnum = pgEnum("project_type", [
 
 export const projectRoleEnum = pgEnum("project_role", ["owner", "member"]);
 
+export const projectRolePreferenceEnum = pgEnum("project_role_preference", [
+  "Frontend",
+  "Backend",
+  "Design",
+  "Research",
+  "PM-ish",
+  "Flexible",
+]);
+
 // ─── Project ─────────────────────────────────────────────────────────────────
 
 export const project = pgTable(
@@ -121,6 +144,15 @@ export const projectMember = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: projectRoleEnum("role").notNull().default("member"),
+    
+    // Project-specific profile setup
+    skills: jsonb("skills").$type<{ name: string; confidence: "Comfortable" | "Learning" }[]>(),
+    rolePreference: projectRolePreferenceEnum("rolePreference"),
+    interests: text("interests"),
+    weeklyHours: integer("weeklyHours"),
+    otherProjects: boolean("otherProjects").default(false),
+    timezone: text("timezone"),
+    
     joinedAt: timestamp("joinedAt").notNull(),
   },
   (table) => [
