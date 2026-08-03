@@ -1,10 +1,11 @@
 "use server";
 
+import { tasks } from "@trigger.dev/sdk/v3";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { project, projectMember, projectInvite, projectApiKey } from "@/db/schema";
+import { project, projectMember, projectInvite, projectApiKey, breakdownJob } from "@/db/schema";
 import { nanoid } from "nanoid";
 import type { WizardFormData } from "@/types/wizard";
 
@@ -131,18 +132,21 @@ export async function createProjectAction(
     // Execute atomic batch
     await db.batch(batchQueries as [any, ...any[]]);
 
-    // ── 5. Enqueue AI Breakdown Engine (Phase 22) ────────────────────────────
-    // TODO: [Phase 22] Uncomment when the Trigger.dev task exists:
-    //
-    // await tasks.trigger("ai-breakdown-engine", {
-    //   projectId,
-    //   title: formData.title,
-    //   techStack: formData.techStack,
-    //   problemStatement: formData.problemStatement,
-    //   solution: formData.solution,
-    //   scope: formData.scope,
-    //   documentUrls: formData.uploadedDocuments.map((d) => d.url),
-    // });
+    // ── 5. Insert breakdown_job row + enqueue Trigger.dev task ────────────────
+    await db.insert(breakdownJob).values({
+      id: nanoid(),
+      projectId,
+      status: "pending",
+      createdAt: new Date(),
+    });
+
+    const run = await tasks.trigger("ai-breakdown-engine", { projectId });
+
+    // Store the Trigger.dev run ID so we can deep-link to the dashboard run
+    await db
+      .update(breakdownJob)
+      .set({ triggerRunId: run.id })
+      .where(eq(breakdownJob.projectId, projectId));
 
     return { success: true, projectId };
   } catch (err) {
