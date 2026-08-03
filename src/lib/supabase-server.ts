@@ -20,8 +20,8 @@ if (!supabaseUrl || !serviceRoleKey) {
  * Bypasses Row Level Security — only call after performing your own auth/authz checks.
  */
 export const supabaseAdmin = createClient(
-  supabaseUrl ?? "",
-  serviceRoleKey ?? "",
+  supabaseUrl || "https://placeholder.supabase.co",
+  serviceRoleKey || "dummy_service_role_key_to_prevent_crash",
   {
     auth: {
       // Prevents the SDK from persisting session data server-side

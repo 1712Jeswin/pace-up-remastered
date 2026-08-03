@@ -9,6 +9,8 @@ import { WizardNav } from "@/components/wizard/WizardNav";
 import { WizardStepPlaceholder } from "@/components/wizard/WizardStepPlaceholder";
 import { SkillsSetupStep } from "./steps/SkillsSetupStep";
 import { AvailabilityStep } from "./steps/AvailabilityStep";
+import { ResumeUploadStep } from "./steps/ResumeUploadStep";
+import { ReviewJoinStep } from "./steps/ReviewJoinStep";
 import type { JoinProjectStep, JoinProjectFormData } from "@/types/join";
 import type { SlideDirection } from "@/types/wizard";
 
@@ -25,6 +27,20 @@ const JOIN_STEPS: JoinProjectStep[] = [
     label: "Availability",
     heading: "Time & Availability",
     description: "Set your weekly commitment and timezone.",
+    isSkippable: false,
+  },
+  {
+    index: 2,
+    label: "Resume",
+    heading: "Upload Resume",
+    description: "Optional, but helps the AI assign tasks accurately.",
+    isSkippable: true,
+  },
+  {
+    index: 3,
+    label: "Review",
+    heading: "Review & Join",
+    description: "Confirm your details before joining the project.",
     isSkippable: false,
   },
 ];
@@ -52,6 +68,7 @@ const buildSlideVariants = (direction: SlideDirection): Variants => ({
 
 interface JoinProjectShellProps {
   projectId: string;
+  inviteToken: string;
   project: {
     title: string;
     memberCount: number;
@@ -60,7 +77,7 @@ interface JoinProjectShellProps {
   initialGlobalSkills?: { name: string; confidence: "Comfortable" | "Learning" }[];
 }
 
-export function JoinProjectShell({ projectId, project, initialGlobalSkills }: JoinProjectShellProps) {
+export function JoinProjectShell({ projectId, inviteToken, project, initialGlobalSkills }: JoinProjectShellProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<SlideDirection>("forward");
 
@@ -99,18 +116,21 @@ export function JoinProjectShell({ projectId, project, initialGlobalSkills }: Jo
     goForward();
   }, [goForward]);
 
-  const handleFinish = useCallback(() => {
-    console.info("[JoinProjectShell] Join Project triggered with data:", formData);
-    // TODO: Final Phase submission (Phase 21 review step will handle this)
-  }, [formData]);
+  const jumpToStep = useCallback((index: number) => {
+    if (index === currentIndex) return;
+    setDirection(index > currentIndex ? "forward" : "back");
+    setCurrentIndex(index);
+  }, [currentIndex]);
 
   const handleContinueOrFinish = useCallback(() => {
     if (isLastStep) {
-      handleFinish();
+      // The final step has its own "Join Project" button that triggers the action.
+      // This is here as a fallback in case WizardNav somehow triggers it.
+      document.getElementById("review-join-trigger")?.click();
     } else {
       goForward();
     }
-  }, [isLastStep, handleFinish, goForward]);
+  }, [isLastStep, goForward]);
 
   const slideVariants = buildSlideVariants(direction);
 
@@ -132,6 +152,28 @@ export function JoinProjectShell({ projectId, project, initialGlobalSkills }: Jo
             formData={formData}
             updateForm={updateForm}
             setCanContinue={setCanContinue}
+          />
+        );
+      case 2:
+        return (
+          <ResumeUploadStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+            projectId={projectId}
+          />
+        );
+      case 3:
+        return (
+          <ReviewJoinStep
+            step={currentStep}
+            formData={formData}
+            updateForm={updateForm}
+            setCanContinue={setCanContinue}
+            projectId={projectId}
+            inviteToken={inviteToken}
+            onNavigateToStep={jumpToStep}
           />
         );
       default:
@@ -196,15 +238,17 @@ export function JoinProjectShell({ projectId, project, initialGlobalSkills }: Jo
       </main>
 
       {/* ── Footer Nav ────────────────────────────────────────────────────── */}
-      <WizardNav
-        canContinue={canContinue}
-        onContinue={handleContinueOrFinish}
-        onBack={goBack}
-        onSkip={skip}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        isSkippable={currentStep.isSkippable}
-      />
+      {!isLastStep && (
+        <WizardNav
+          canContinue={canContinue}
+          onContinue={handleContinueOrFinish}
+          onBack={goBack}
+          onSkip={skip}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          isSkippable={currentStep.isSkippable}
+        />
+      )}
     </div>
   );
 }

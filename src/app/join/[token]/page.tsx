@@ -46,11 +46,9 @@ export default function JoinTokenPage({ params }: { params: Promise<{ token: str
 
   const handleJoin = async () => {
     setJoining(true);
-    // In a real app, this would hit an API to add the user to the project.
-    // For Phase 6, we'll just mock the delay and redirect to dashboard/projects.
-    setTimeout(() => {
-      router.push("/projects");
-    }, 1500);
+    // Phase 21: Route to the member profile setup flow instead of mocking a direct join.
+    // The profile flow handles the actual project membership insertion.
+    router.push(`/join/${encodeURIComponent(token)}/profile`);
   };
 
   const returnUrl = encodeURIComponent(`/join/${token}`);

@@ -14,7 +14,8 @@ type ConcreteProvider = Exclude<AiProvider, "">;
 // Very basic format checks per provider — prevents accidental pastes of wrong content.
 // NOT a functional key test (we don't make live API calls to validate).
 const KEY_PATTERNS: Record<ConcreteProvider, RegExp> = {
-  gemini: /^AIza[0-9A-Za-z_-]{35,}$/,
+  // Gemini keys traditionally start with AIza, but newer keys can start with AQ.
+  gemini: /^(AIza|AQ\.)[0-9A-Za-z_-]{30,}$/,
   openai: /^sk-[A-Za-z0-9]{32,}$/,
   anthropic: /^sk-ant-[A-Za-z0-9_-]{80,}$/,
   openrouter: /^sk-or-[A-Za-z0-9_-]{32,}$/,

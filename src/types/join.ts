@@ -14,8 +14,10 @@ export interface JoinProjectFormData {
   weeklyHours: number;
   otherProjects: boolean;
   timezone: string;
-  // Phase 21 will add resume parsing summary
+  /** AI-generated (and possibly user-edited) experience summary from resume parsing. */
   resumeSummary?: string;
+  /** Supabase Storage path of the uploaded resume — used for deletion on skip/change. */
+  resumeStoragePath?: string;
 }
 
 export interface JoinProjectStep {

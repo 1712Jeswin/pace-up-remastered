@@ -241,11 +241,13 @@
 
 ---
 
-## Phase 21 — Member Profile Setup: Resume Upload & AI Parsing
-**Deliverables:** Resume upload (Supabase Storage), AI parsing via Vercel AI SDK, editable AI-generated experience summary card, storage of parsed data into project-specific skillset.
+## Phase 21: Join Wizard — Member Profile Setup (Resume Upload & AI Parsing) `[x]`
+**Goal:** Collect skills, role preferences, availability, and a resume from the invitee.
 
-**Build Prompt:**
-> Build Step 3 of the Paceup Member Profile Setup flow (Resume Upload). Implement a drag-and-drop upload zone with a gold "Highly Recommended" badge (not a plain optional label), uploading to Supabase Storage. On upload, trigger an AI parsing call via the Vercel AI SDK (using the project's configured AI provider) that extracts a short summary of relevant past experience/projects from the resume text. While processing, show the `AiThinking` component from Phase 2 with a status line like "Reading your resume...". Once complete, display the result in an `AiGeneratedContent`-styled card that the user can edit before confirming — store the final (possibly edited) summary text as part of their project-specific skillset, not their Global Profile. Include a short reassurance line: "Only visible to your project owner and used to improve task matching." Ensure this step remains skippable, and build the final Review & Join step showing a summary of skills, role, availability, and resume summary (if added) with a "Join Project" confirmation button that finalizes ProjectMembership.
+- [x] Extend wizard component with "Upload Resume" step.
+- [x] Integrate Vercel AI SDK (with a placeholder for multi-provider routing) to extract text/experience into a short summary.
+- [x] Allow user to edit the AI-generated summary before finalizing.
+- [x] Write to `project_member` with collected fields on "Join Project".
 
 *(Agent reference: Claude Opus 4.5 — AI extraction logic)*
 

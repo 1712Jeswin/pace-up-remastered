@@ -59,9 +59,11 @@ export async function createProjectAction(
   const deadline = new Date(formData.deadline);
 
   try {
-    await db.transaction(async (tx) => {
-      // ── 1. Create the project ────────────────────────────────────────────
-      await tx.insert(project).values({
+    const batchQueries: any[] = [];
+
+    // ── 1. Create the project ────────────────────────────────────────────
+    batchQueries.push(
+      db.insert(project).values({
         id: projectId,
         title: formData.title.trim(),
         type: formData.type as "Hackathon" | "Final-Year Project" | "Coursework" | "Club Project" | "Research",
@@ -72,23 +74,27 @@ export async function createProjectAction(
         ownerId,
         createdAt: now,
         updatedAt: now,
-      });
+      })
+    );
 
-      // ── 2. Add the creator as owner-member ───────────────────────────────
-      await tx.insert(projectMember).values({
+    // ── 2. Add the creator as owner-member ───────────────────────────────
+    batchQueries.push(
+      db.insert(projectMember).values({
         id: nanoid(),
         projectId,
         userId: ownerId,
         role: "owner",
         joinedAt: now,
-      });
+      })
+    );
 
-      // ── 3. Create pending invites for all staged invites ─────────────────
-      // Invite expiry: 7 days from now
-      const inviteExpiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // ── 3. Create pending invites for all staged invites ─────────────────
+    // Invite expiry: 7 days from now
+    const inviteExpiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      for (const invite of formData.stagedInvites) {
-        await tx.insert(projectInvite).values({
+    for (const invite of formData.stagedInvites) {
+      batchQueries.push(
+        db.insert(projectInvite).values({
           id: nanoid(),
           projectId,
           inviteeId: invite.userId,
@@ -98,15 +104,17 @@ export async function createProjectAction(
           status: "pending",
           expiresAt: inviteExpiresAt,
           createdAt: now,
-        });
-      }
+        })
+      );
+    }
 
-      // ── 4. Store the encrypted API key (if one was saved) ────────────────
-      if (formData.providerKey?.isSaved && formData.providerKey.encryptedKey) {
-        const { provider, encryptedKey, policy } = formData.providerKey;
+    // ── 4. Store the encrypted API key (if one was saved) ────────────────
+    if (formData.providerKey?.isSaved && formData.providerKey.encryptedKey) {
+      const { provider, encryptedKey, policy } = formData.providerKey;
 
-        if (provider) {
-          await tx.insert(projectApiKey).values({
+      if (provider) {
+        batchQueries.push(
+          db.insert(projectApiKey).values({
             id: nanoid(),
             projectId,
             userId: ownerId,
@@ -115,10 +123,13 @@ export async function createProjectAction(
             policy: policy as "owner_key" | "per_member_key",
             createdAt: now,
             updatedAt: now,
-          });
-        }
+          })
+        );
       }
-    });
+    }
+
+    // Execute atomic batch
+    await db.batch(batchQueries as [any, ...any[]]);
 
     // ── 5. Enqueue AI Breakdown Engine (Phase 22) ────────────────────────────
     // TODO: [Phase 22] Uncomment when the Trigger.dev task exists:

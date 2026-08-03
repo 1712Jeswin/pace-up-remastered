@@ -68,6 +68,7 @@ export default async function JoinProjectPage({ params }: JoinPageProps) {
   return (
     <JoinProjectShell
       projectId={id}
+      inviteToken="" // Legacy route, use /join/[token]/profile instead
       project={{
         title: projectData.title,
         memberCount: memberCount || 1, // Fallback to 1 if we're the first

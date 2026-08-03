@@ -152,7 +152,13 @@ export const projectMember = pgTable(
     weeklyHours: integer("weeklyHours"),
     otherProjects: boolean("otherProjects").default(false),
     timezone: text("timezone"),
-    
+
+    // Phase 21: Resume upload & AI parsing
+    // The AI-generated (and user-editable) experience summary extracted from the resume.
+    resumeSummary: text("resumeSummary"),
+    // Supabase Storage path for the uploaded resume file — retained for reference or cleanup.
+    resumeStoragePath: text("resumeStoragePath"),
+
     joinedAt: timestamp("joinedAt").notNull(),
   },
   (table) => [
