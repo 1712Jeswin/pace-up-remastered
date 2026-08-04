@@ -51,6 +51,8 @@ const BreakdownSchema = z.object({
 
 interface BreakdownPayload {
   projectId: string;
+  /** Optional user feedback to guide the regeneration — prepended to the AI prompt */
+  feedbackNote?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,7 +76,8 @@ function buildPrompt(
     weeklyHours: number | null;
     resumeSummary: string | null;
     otherProjects: boolean | null;
-  }[]
+  }[],
+  feedbackNote?: string
 ): string {
   const deadlineStr = projectData.deadline
     ? projectData.deadline.toISOString().split("T")[0]
@@ -130,7 +133,7 @@ ${memberProfiles}
 7. Spread work reasonably across team members based on their weekly hours.
 8. Use the exact Member IDs provided above in assigneeMemberId — do NOT invent IDs.
 
-Return valid JSON matching the provided schema. Do not add any markdown or extra commentary.`;
+Return valid JSON matching the provided schema. Do not add any markdown or extra commentary.${feedbackNote ? `\n\n== FEEDBACK FROM TEAM ==\n${feedbackNote}\n(Incorporate this feedback into the new breakdown.)` : ""}`;
 }
 
 // ─── Main Task ────────────────────────────────────────────────────────────────
@@ -143,7 +146,7 @@ export const aiBreakdownEngine = task({
   },
 
   run: async (payload: BreakdownPayload) => {
-    const { projectId } = payload;
+    const { projectId, feedbackNote } = payload;
 
     logger.info("AI Breakdown Engine started", { projectId });
 
@@ -244,7 +247,8 @@ export const aiBreakdownEngine = task({
           weeklyHours: m.weeklyHours ?? null,
           resumeSummary: m.resumeSummary ?? null,
           otherProjects: m.otherProjects ?? false,
-        }))
+        })),
+        feedbackNote
       );
 
       let breakdown: z.infer<typeof BreakdownSchema>;

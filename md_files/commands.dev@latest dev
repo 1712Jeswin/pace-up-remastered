@@ -1,0 +1,3 @@
+npx trigger.dev@latest dev
+
+npm run dev

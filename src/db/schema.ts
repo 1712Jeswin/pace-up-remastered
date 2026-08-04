@@ -281,6 +281,8 @@ export const breakdownJob = pgTable(
     triggerRunId: text("triggerRunId"),
     // Plain-text error message if status = "failed" — never a raw stack trace
     errorMessage: text("errorMessage"),
+    // Optional user-supplied feedback note for regeneration ("What should be different?")
+    feedbackNote: text("feedbackNote"),
     startedAt: timestamp("startedAt"),
     completedAt: timestamp("completedAt"),
     createdAt: timestamp("createdAt").notNull(),
