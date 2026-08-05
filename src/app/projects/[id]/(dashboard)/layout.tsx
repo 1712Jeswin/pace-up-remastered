@@ -29,6 +29,7 @@ export default async function DashboardLayout({
       id: project.id,
       title: project.title,
       deadline: project.deadline,
+      progress: project.progress,
     })
     .from(project)
     .leftJoin(projectMember, eq(project.id, projectMember.projectId))
@@ -53,6 +54,7 @@ export default async function DashboardLayout({
           projectId={projectId}
           projectName={proj.title}
           deadline={proj.deadline}
+          progress={proj.progress}
         />
         <main className="flex-1 overflow-y-auto p-6">
           {children}

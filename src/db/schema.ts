@@ -439,3 +439,35 @@ export const standupSummary = pgTable(
     uniqueIndex("standup_summary_unique_idx").on(table.projectId, table.date),
   ]
 );
+
+// ─── Activity Log (Phase 28) ───────────────────────────────────────────────────
+
+export const activityTypeEnum = pgEnum("activity_type", [
+  "task_completed",
+  "submission_uploaded",
+  "member_joined",
+  "breakdown_regenerated",
+]);
+
+/**
+ * Audit log of recent events in a project. Displayed on the Dashboard Activity Feed.
+ */
+export const projectActivity = pgTable(
+  "project_activity",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    // The user who performed the action (can be null if system/AI action)
+    userId: text("userId").references(() => user.id, { onDelete: "set null" }),
+    type: activityTypeEnum("type").notNull(),
+    // JSON payload holding context-specific data (e.g. task name, submission title)
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("createdAt").notNull(),
+  },
+  (table) => [
+    // Used to load the feed for a project
+    index("project_activity_project_created_idx").on(table.projectId, table.createdAt),
+  ]
+);

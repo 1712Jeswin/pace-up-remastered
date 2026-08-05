@@ -1,4 +1,4 @@
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   project,
@@ -9,6 +9,7 @@ import {
   standupCheckin,
   standupSummary,
   user,
+  projectActivity,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -16,6 +17,8 @@ import { StandupSection } from "./components/StandupSection";
 import { OwnershipMap } from "./components/OwnershipMap";
 import { DashboardMilestoneTimeline } from "./components/DashboardMilestoneTimeline";
 import { BlockersPanel } from "./components/BlockersPanel";
+import { ActivityFeed } from "./components/ActivityFeed";
+import { QuickActions } from "./components/QuickActions";
 
 /**
  * Returns today's UTC date as a YYYY-MM-DD string.
@@ -48,6 +51,7 @@ export default async function ProjectDashboardPage({
     rawTasks,
     rawMilestones,
     projectRow,
+    rawActivities,
   ] = await Promise.all([
     // All project members joined to user
     // Index: project_member_project_idx
@@ -131,6 +135,24 @@ export default async function ProjectDashboardPage({
       .from(project)
       .where(eq(project.id, projectId))
       .limit(1),
+
+    // Recent activity feed
+    // Index: project_activity_project_created_idx
+    db
+      .select({
+        id: projectActivity.id,
+        type: projectActivity.type,
+        userId: projectActivity.userId,
+        metadata: projectActivity.metadata,
+        createdAt: projectActivity.createdAt,
+        actorName: user.name,
+        actorImage: user.image,
+      })
+      .from(projectActivity)
+      .leftJoin(user, eq(projectActivity.userId, user.id))
+      .where(eq(projectActivity.projectId, projectId))
+      .orderBy(desc(projectActivity.createdAt))
+      .limit(20),
   ]);
 
   // ── Standup section data ──────────────────────────────────────────────────
@@ -248,20 +270,32 @@ export default async function ProjectDashboardPage({
         aiSummary={todaySummaryRows[0]?.summary ?? null}
       />
 
-      {/* Section 2 — Ownership Map */}
-      <OwnershipMap
-        members={ownershipMembers}
-        unassignedTasks={unassignedTasks}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div className="md:col-span-2 flex flex-col gap-12">
+          {/* Section 2 — Ownership Map */}
+          <OwnershipMap
+            members={ownershipMembers}
+            unassignedTasks={unassignedTasks}
+          />
 
-      {/* Section 3 — Milestone Timeline */}
-      <DashboardMilestoneTimeline
-        milestones={rawMilestones}
-        projectDeadline={projectDeadline}
-      />
+          {/* Section 3 — Milestone Timeline */}
+          <DashboardMilestoneTimeline
+            milestones={rawMilestones}
+            projectDeadline={projectDeadline}
+          />
 
-      {/* Section 4 — Blockers & Risk */}
-      <BlockersPanel blockedTasks={blockedTasks} />
+          {/* Section 4 — Blockers & Risk */}
+          <BlockersPanel blockedTasks={blockedTasks} />
+        </div>
+
+        <div className="flex flex-col gap-12">
+          {/* Section 5 — Quick Actions */}
+          <QuickActions projectId={projectId} />
+
+          {/* Section 6 — Activity Feed */}
+          <ActivityFeed activities={rawActivities} />
+        </div>
+      </div>
     </div>
   );
 }

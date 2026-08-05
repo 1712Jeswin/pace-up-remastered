@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Clock } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface TopBarProps {
   projectId: string;
   projectName: string;
   deadline: Date | null;
+  progress: number;
 }
 
-export function TopBar({ projectId, projectName, deadline }: TopBarProps) {
+export function TopBar({ projectId, projectName, deadline, progress }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<string>("");
 
   useEffect(() => {
@@ -53,6 +55,21 @@ export function TopBar({ projectId, projectName, deadline }: TopBarProps) {
         <h1 className="text-sm font-semibold text-foreground tracking-wide">
           {projectName}
         </h1>
+        
+        {/* Progress indicator */}
+        <div className="flex items-center gap-2 ml-4">
+          <div className="text-[10px] font-mono text-muted-foreground/60 w-8 text-right">
+            {progress}%
+          </div>
+          <div className="h-1.5 w-24 rounded-full bg-muted/40 overflow-hidden relative">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute left-0 top-0 bottom-0 rounded-full bg-toxic shadow-[0_0_8px_rgba(57,255,20,0.4)]"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-6">
