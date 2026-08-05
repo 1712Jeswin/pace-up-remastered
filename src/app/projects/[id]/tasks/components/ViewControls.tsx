@@ -1,12 +1,18 @@
 "use client";
 
-import { LayoutGrid, List as ListIcon, Search, Plus, Filter } from "lucide-react";
+import { LayoutGrid, List as ListIcon, Search, Plus, Filter, X } from "lucide-react";
+import { useState } from "react";
 
 interface ViewControlsProps {
   viewMode: "board" | "list";
   setViewMode: (mode: "board" | "list") => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+  assigneeFilter: string | null;
+  setAssigneeFilter: (val: string | null) => void;
+  statusFilter: string | null;
+  setStatusFilter: (val: string | null) => void;
+  uniqueAssignees: string[];
 }
 
 export function ViewControls({
@@ -14,10 +20,17 @@ export function ViewControls({
   setViewMode,
   searchQuery,
   setSearchQuery,
+  assigneeFilter,
+  setAssigneeFilter,
+  statusFilter,
+  setStatusFilter,
+  uniqueAssignees,
 }: ViewControlsProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         {/* View Toggle */}
         <div className="flex items-center p-1 bg-muted/20 border border-border/40 rounded-lg">
           <button
@@ -56,11 +69,60 @@ export function ViewControls({
           />
         </div>
         
-        {/* Filter Placeholder */}
-        <button className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors text-sm">
-          <Filter className="h-3.5 w-3.5" />
-          Filters
-        </button>
+        {/* Filter Button & Dropdown */}
+        <div className="relative">
+          <button 
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={`flex items-center gap-2 h-9 px-3 rounded-lg border transition-colors text-sm ${
+              (assigneeFilter || statusFilter) 
+                ? "border-toxic/50 bg-toxic/5 text-foreground" 
+                : "border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+            }`}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filters {(assigneeFilter || statusFilter) && <span className="flex h-2 w-2 rounded-full bg-toxic ml-1" />}
+          </button>
+
+          {filtersOpen && (
+            <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border/50 rounded-xl shadow-lg z-50 p-4 flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-semibold text-foreground">Filters</h4>
+                <button onClick={() => { setAssigneeFilter(null); setStatusFilter(null); }} className="text-xs text-muted-foreground hover:text-foreground">Clear all</button>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Assignee</label>
+                <select 
+                  value={assigneeFilter || ""} 
+                  onChange={(e) => setAssigneeFilter(e.target.value || null)}
+                  className="w-full h-8 px-2 bg-muted/20 border border-border/40 rounded-md text-sm text-foreground focus:outline-none focus:border-toxic/50"
+                >
+                  <option value="">All Members</option>
+                  <option value="unassigned">Unassigned</option>
+                  {uniqueAssignees.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Status</label>
+                <select 
+                  value={statusFilter || ""} 
+                  onChange={(e) => setStatusFilter(e.target.value || null)}
+                  className="w-full h-8 px-2 bg-muted/20 border border-border/40 rounded-md text-sm text-foreground focus:outline-none focus:border-toxic/50"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="not_started">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="in_review">In Review</option>
+                  <option value="complete">Done</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add Task Action */}

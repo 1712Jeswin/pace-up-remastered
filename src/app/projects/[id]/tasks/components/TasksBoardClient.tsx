@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { updateTaskStatusAction, TaskStatus } from "@/app/actions/tasks";
 import { BoardColumn } from "./BoardColumn";
 import { TaskCard } from "./TaskCard";
 import { ViewControls } from "./ViewControls";
+import { TasksListClient } from "./TasksListClient";
 
 export interface RawTask {
   id: string;
@@ -52,12 +53,20 @@ export function TasksBoardClient({ projectId, initialTasks }: TasksBoardClientPr
   const [tasks, setTasks] = useState<RawTask[]>(initialTasks);
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [searchQuery, setSearchQuery] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  
   const [isClient, setIsClient] = useState(false);
 
   // Avoid hydration mismatch for DND context
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const uniqueAssignees = useMemo(() => {
+    const names = tasks.map(t => t.assigneeName).filter(Boolean) as string[];
+    return Array.from(new Set(names)).sort();
+  }, [tasks]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -86,15 +95,31 @@ export function TasksBoardClient({ projectId, initialTasks }: TasksBoardClientPr
     // Fire server action to update DB
     const res = await updateTaskStatusAction(projectId, draggableId, newStatus);
     if (!res.success) {
-      // Revert on failure (or show toast)
+      // Revert on failure
       console.error(res.error);
       setTasks(initialTasks);
     }
   };
 
-  const filteredTasks = tasks.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTasks = tasks.filter((t) => {
+    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    let matchesAssignee = true;
+    if (assigneeFilter === "unassigned") {
+      matchesAssignee = !t.assigneeName;
+    } else if (assigneeFilter) {
+      matchesAssignee = t.assigneeName === assigneeFilter;
+    }
+
+    let matchesStatus = true;
+    if (statusFilter) {
+      // Treat blocked as not_started for filtering logic if not strictly filtering
+      // But if strict status filter is on, match exactly.
+      matchesStatus = t.status === statusFilter || (statusFilter === "not_started" && t.status === "blocked");
+    }
+
+    return matchesSearch && matchesAssignee && matchesStatus;
+  });
 
   if (!isClient) return null;
 
@@ -105,6 +130,11 @@ export function TasksBoardClient({ projectId, initialTasks }: TasksBoardClientPr
         setViewMode={setViewMode}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        assigneeFilter={assigneeFilter}
+        setAssigneeFilter={setAssigneeFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        uniqueAssignees={uniqueAssignees}
       />
 
       {viewMode === "board" ? (
@@ -139,9 +169,7 @@ export function TasksBoardClient({ projectId, initialTasks }: TasksBoardClientPr
           </div>
         </DragDropContext>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border/40 rounded-2xl bg-muted/5">
-          <p className="text-muted-foreground text-sm">List view coming soon (Phase 30)</p>
-        </div>
+        <TasksListClient tasks={filteredTasks} />
       )}
     </div>
   );
