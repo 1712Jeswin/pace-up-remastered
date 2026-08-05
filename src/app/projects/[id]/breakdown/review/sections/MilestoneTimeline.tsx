@@ -4,6 +4,8 @@ interface Milestone {
   description: string | null;
   dueDate: Date;
   order: number;
+  /** Whether the milestone has been marked complete. Defaults to false. */
+  completed?: boolean;
 }
 
 interface MilestoneTimelineProps {
@@ -27,6 +29,9 @@ export function MilestoneTimeline({ milestones, projectDeadline }: MilestoneTime
   function formatDate(date: Date): string {
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
+
+  // Determine the "current" milestone: the first non-completed upcoming milestone
+  const currentMilestoneId = sorted.find((ms) => !ms.completed)?.id ?? null;
 
   return (
     <section>
@@ -56,7 +61,9 @@ export function MilestoneTimeline({ milestones, projectDeadline }: MilestoneTime
           {/* Milestone dots */}
           {sorted.map((ms, idx) => {
             const pct = getPct(ms.dueDate);
-            const isAbove = idx % 2 === 0; // Alternate labels above/below to reduce overlap
+            const isAbove = idx % 2 === 0;
+            const isCompleted = ms.completed === true;
+            const isCurrent = ms.id === currentMilestoneId;
 
             return (
               <div
@@ -65,7 +72,23 @@ export function MilestoneTimeline({ milestones, projectDeadline }: MilestoneTime
                 style={{ left: `${pct}%` }}
               >
                 {/* Dot */}
-                <div className="h-4 w-4 rounded-full bg-card border-2 border-toxic/60 -translate-x-1/2 shadow-sm" />
+                {isCompleted ? (
+                  // Completed — solid green with a check
+                  <div className="-translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-toxic shadow-[0_0_8px_rgba(57,255,20,0.4)]">
+                    <svg className="h-3 w-3 text-background" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                ) : isCurrent ? (
+                  // Current — pulsing ring
+                  <div className="relative -translate-x-1/2">
+                    <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-blue-400/40" />
+                    <div className="relative h-4 w-4 rounded-full bg-card border-2 border-blue-400 shadow-sm" />
+                  </div>
+                ) : (
+                  // Upcoming — neutral style
+                  <div className="h-4 w-4 rounded-full bg-card border-2 border-border/60 -translate-x-1/2 shadow-sm" />
+                )}
 
                 {/* Label — alternates above/below */}
                 <div
@@ -73,10 +96,18 @@ export function MilestoneTimeline({ milestones, projectDeadline }: MilestoneTime
                     isAbove ? "bottom-full mb-3" : "top-full mt-3"
                   }`}
                 >
-                  <p className="text-[10px] font-semibold text-foreground leading-tight line-clamp-2">
+                  <p
+                    className={`text-[10px] font-semibold leading-tight line-clamp-2 ${
+                      isCompleted ? "text-muted-foreground/50 line-through" : "text-foreground"
+                    }`}
+                  >
                     {ms.name}
                   </p>
-                  <p className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">
+                  <p
+                    className={`text-[10px] font-mono mt-0.5 ${
+                      isCompleted ? "text-muted-foreground/40" : "text-muted-foreground/70"
+                    }`}
+                  >
                     {formatDate(ms.dueDate)}
                   </p>
                 </div>

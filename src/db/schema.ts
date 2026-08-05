@@ -380,3 +380,62 @@ export const projectTask = pgTable(
     index("project_task_assignee_idx").on(table.assigneeId),
   ]
 );
+
+// ─── Standup Check-ins (Phase 26) ─────────────────────────────────────────────
+
+/**
+ * One row per member per project per calendar day (UTC).
+ * date is stored as a plain text YYYY-MM-DD string to avoid timezone ambiguity
+ * when comparing "has this user checked in today?" server-side.
+ */
+export const standupCheckin = pgTable(
+  "standup_checkin",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // UTC calendar date — YYYY-MM-DD
+    date: varchar("date", { length: 10 }).notNull(),
+    // What the member is working on today (required)
+    update: text("update").notNull(),
+    // Optional blocker note
+    blockers: text("blockers"),
+    createdAt: timestamp("createdAt").notNull(),
+  },
+  (table) => [
+    // "All check-ins for project X on date Y" — used by the status row query
+    index("standup_checkin_project_date_idx").on(table.projectId, table.date),
+    // "All check-ins by user X" — used for personal standup history
+    index("standup_checkin_user_idx").on(table.userId),
+    // Enforce one check-in per person per day per project
+    uniqueIndex("standup_checkin_unique_idx").on(table.projectId, table.userId, table.date),
+  ]
+);
+
+/**
+ * One row per project per calendar day.
+ * The summary field is null until the Phase 34 AI job populates it.
+ * Phase 26 reads this table and renders a placeholder when summary is null.
+ */
+export const standupSummary = pgTable(
+  "standup_summary",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    // UTC calendar date — YYYY-MM-DD
+    date: varchar("date", { length: 10 }).notNull(),
+    // AI-generated team summary — null until Phase 34 writes it
+    summary: text("summary"),
+    createdAt: timestamp("createdAt").notNull(),
+  },
+  (table) => [
+    index("standup_summary_project_date_idx").on(table.projectId, table.date),
+    uniqueIndex("standup_summary_unique_idx").on(table.projectId, table.date),
+  ]
+);
